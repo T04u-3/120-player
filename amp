@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>YDS-120 Web MIDI Player</title>
+
+<style>
+body{
+  font-family: sans-serif;
+  background:#0f172a;
+  color:white;
+  text-align:center;
+  padding:30px;
+}
+
+button{
+  padding:12px 20px;
+  margin:10px;
+  border:none;
+  border-radius:8px;
+  font-size:16px;
+  cursor:pointer;
+}
+
+.card{
+  background:#1e293b;
+  padding:20px;
+  border-radius:12px;
+  margin:20px auto;
+  max-width:600px;
+}
+</style>
+</head>
+
+<body>
+<h1>🎷 YDS-120 Web Player</h1>
+<p>USB接続したYDS-120をブラウザで鳴らすテスト</p>
+
+<div class="card">
+  <button onclick="connectMIDI()">MIDI接続</button>
+  <button onclick="testSound()">テスト音</button>
+</div>
+
+<div class="card">
+  <h3>現在の音</h3>
+  <p id="note">未接続</p>
+</div>
+
+<script>
+let midiAccess;
+let input;
+
+let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function midiToFreq(note){
+  return 440 * Math.pow(2, (note - 69) / 12);
+}
+
+function playFreq(freq, velocity){
+  let osc = audioCtx.createOscillator();
+  let gain = audioCtx.createGain();
+
+  osc.type = "sawtooth";
+  osc.frequency.value = freq;
+
+  gain.gain.value = velocity / 127;
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start();
+
+  setTimeout(()=>{
+    osc.stop();
+  }, 300);
+}
+
+async function connectMIDI(){
+  try{
+    midiAccess = await navigator.requestMIDIAccess();
+
+    const inputs = midiAccess.inputs.values();
+
+    for(let i of inputs){
+      input = i;
+      break;
+    }
+
+    if(input){
+      input.onmidimessage = handleMIDI;
+      document.getElementById("note").innerText = "接続成功";
+    }
+
+  }catch(e){
+    alert("MIDI接続失敗");
+  }
+}
+
+function handleMIDI(msg){
+  const [status, note, velocity] = msg.data;
+
+  if(status === 144 && velocity > 0){
+    const freq = midiToFreq(note);
+    playFreq(freq, velocity);
+
+    document.getElementById("note").innerText =
+      `Note: ${note} Velocity: ${velocity}`;
+  }
+}
+
+function testSound(){
+  playFreq(440, 100);
+}
+</script>
+
+</body>
+</html>
