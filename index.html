@@ -53,27 +53,46 @@ let input;
 
 let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+let activeNotes = {};
+
 function midiToFreq(note){
   return 440 * Math.pow(2, (note - 69) / 12);
 }
 
-function playFreq(freq, velocity){
+function createSaxWave(){
+  const real = new Float32Array([0,1,0.6,0.4,0.2,0.1]);
+  const imag = new Float32Array(real.length);
+  return audioCtx.createPeriodicWave(real, imag);
+}
+
+const saxWave = createSaxWave();
+
+function playFreq(note, velocity){
+  if(activeNotes[note]) return;
+
+  const freq = midiToFreq(note);
+
   let osc = audioCtx.createOscillator();
   let gain = audioCtx.createGain();
 
-  osc.type = "sine";
+  osc.setPeriodicWave(saxWave);
   osc.frequency.value = freq;
 
-  gain.gain.value = (velocity / 127) * 0.03;
+  gain.gain.value = (velocity / 127) * 0.02;
 
   osc.connect(gain);
   gain.connect(audioCtx.destination);
 
   osc.start();
 
-  setTimeout(()=>{
-    osc.stop();
-  }, 300);
+  activeNotes[note] = {osc, gain};
+}
+
+function stopFreq(note){
+  if(activeNotes[note]){
+    activeNotes[note].osc.stop();
+    delete activeNotes[note];
+  }
 }
 
 async function connectMIDI(){
@@ -101,16 +120,20 @@ function handleMIDI(msg){
   const [status, note, velocity] = msg.data;
 
   if(status === 144 && velocity > 0){
-    const freq = midiToFreq(note);
-    playFreq(freq, velocity);
+    playFreq(note, velocity);
 
     document.getElementById("note").innerText =
       `Note: ${note} Velocity: ${velocity}`;
   }
+
+  if(status === 128 || (status === 144 && velocity === 0)){
+    stopFreq(note);
+  }
 }
 
 function testSound(){
-  playFreq(440, 100);
+  playFreq(69,100);
+  setTimeout(()=>stopFreq(69),500);
 }
 </script>
 
