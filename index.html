@@ -1,43 +1,46 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+
 <meta charset="UTF-8">
-<title>YDS Sax Trainer</title>
+<title>YDS Sax Lab</title>
+
 <link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vexflow@4.1.0/build/cjs/vexflow.js"></script>
+
 </head>
 
 <body>
 
-<div class="container">
+<div id="app">
 
-<h1>🎷 YDS Sax Trainer</h1>
+<h1>🎷 YDS Sax Lab</h1>
 
 <button id="connect">MIDI接続</button>
 
-<div class="panel">
-
-<div class="meter">
-<div id="level"></div>
+<div id="meter">
+<div id="breath"></div>
 </div>
 
-<div class="note">
-現在の音：<span id="note">---</span>
+<div id="note">---</div>
+
+<div id="pitch">
+Pitch error: <span id="cent">0</span> cent
 </div>
 
-</div>
+<div id="score"></div>
 
-<div class="controls">
-
-<label>リバーブ</label>
-<input id="reverb" type="range" min="0" max="1" step="0.01" value="0.3">
-
-<label>ブライトネス</label>
-<input id="brightness" type="range" min="500" max="5000" value="2000">
+<div id="sheet"></div>
 
 </div>
 
-</div>
-
+<script src="synth.js"></script>
+<script src="pitch.js"></script>
+<script src="score.js"></script>
+<script src="midi.js"></script>
 <script src="app.js"></script>
+
 </body>
 </html>
