@@ -61,10 +61,10 @@ function playFreq(freq, velocity){
   let osc = audioCtx.createOscillator();
   let gain = audioCtx.createGain();
 
-  osc.type = "sawtooth";
+  osc.type = "sine";
   osc.frequency.value = freq;
 
-  gain.gain.value = velocity / 127;
+  gain.gain.value = (velocity / 127) * 0.15;
 
   osc.connect(gain);
   gain.connect(audioCtx.destination);
