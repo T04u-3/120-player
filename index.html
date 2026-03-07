@@ -54,23 +54,33 @@ let input;
 let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 let activeNotes = {};
+let breath = 0; // CC2
 
 function midiToFreq(note){
   return 440 * Math.pow(2, (note - 69) / 12);
 }
 
-/* ===== サックス波形 ===== */
+/* サックス倍音 */
 function createSaxWave(){
-  const real = new Float32Array([0,1,0.8,0.5,0.3,0.2,0.1]);
+  const real = new Float32Array([
+    0,
+    1,
+    0.9,
+    0.7,
+    0.5,
+    0.3,
+    0.2,
+    0.1
+  ]);
   const imag = new Float32Array(real.length);
   return audioCtx.createPeriodicWave(real, imag);
 }
 
 const saxWave = createSaxWave();
 
-/* ===== ノイズ生成（息感） ===== */
+/* ノイズ */
 function createNoiseBuffer(){
-  const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 1, audioCtx.sampleRate);
+  const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
   const data = buffer.getChannelData(0);
   for(let i=0;i<data.length;i++){
     data[i] = Math.random()*2-1;
@@ -80,8 +90,8 @@ function createNoiseBuffer(){
 
 const noiseBuffer = createNoiseBuffer();
 
-/* ===== 音を鳴らす ===== */
 function playFreq(note, velocity){
+
   if(activeNotes[note]) return;
 
   const freq = midiToFreq(note);
@@ -90,46 +100,34 @@ function playFreq(note, velocity){
   const gain = audioCtx.createGain();
   const filter = audioCtx.createBiquadFilter();
 
-  /* ノイズ */
   const noise = audioCtx.createBufferSource();
   const noiseGain = audioCtx.createGain();
 
-  /* ビブラート */
   const vibratoOsc = audioCtx.createOscillator();
   const vibratoGain = audioCtx.createGain();
 
   osc.setPeriodicWave(saxWave);
   osc.frequency.value = freq;
 
-  /* ビブラート設定 */
-  vibratoOsc.frequency.value = 5.5;
-  vibratoGain.gain.value = 6;
+  /* ビブラート */
+  vibratoOsc.frequency.value = 5.3;
+  vibratoGain.gain.value = 4;
   vibratoOsc.connect(vibratoGain);
   vibratoGain.connect(osc.frequency);
 
-  /* フィルタ */
-  filter.type = "lowpass";
-  filter.frequency.value = 3000;
-  filter.Q.value = 5;
+  /* フィルター */
+  filter.type="lowpass";
+  filter.frequency.value = 2000;
+  filter.Q.value = 6;
 
   /* ノイズ */
   noise.buffer = noiseBuffer;
   noise.loop = true;
   noiseGain.gain.value = 0.02;
 
-  /* ADSR */
-  const now = audioCtx.currentTime;
-  const attack = 0.02;
-  const decay = 0.1;
-  const sustain = 0.7;
+  /* 初期音量 */
+  gain.gain.value = 0;
 
-  const baseVol = 0.8 * (velocity / 127);
-
-  gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(baseVol, now + attack);
-  gain.gain.linearRampToValueAtTime(baseVol * sustain, now + attack + decay);
-
-  /* 接続 */
   osc.connect(filter);
   noise.connect(noiseGain);
 
@@ -144,38 +142,78 @@ function playFreq(note, velocity){
   activeNotes[note] = {
     osc,
     gain,
-    noise,
+    filter,
+    noiseGain,
     vibratoOsc
   };
 }
 
-/* ===== 音を止める ===== */
+/* ブレス制御 */
+function updateBreath(value){
+
+  breath = value / 127;
+
+  Object.values(activeNotes).forEach(n=>{
+
+    const vol = breath * 0.9;
+
+    n.gain.gain.setTargetAtTime(
+      vol,
+      audioCtx.currentTime,
+      0.02
+    );
+
+    const cutoff =
+      800 + breath * 5000;
+
+    n.filter.frequency.setTargetAtTime(
+      cutoff,
+      audioCtx.currentTime,
+      0.02
+    );
+
+    const noiseLevel =
+      breath * 0.03;
+
+    n.noiseGain.gain.setTargetAtTime(
+      noiseLevel,
+      audioCtx.currentTime,
+      0.02
+    );
+
+  });
+}
+
 function stopFreq(note){
+
   if(activeNotes[note]){
 
     const n = activeNotes[note];
-    const now = audioCtx.currentTime;
 
-    n.gain.gain.cancelScheduledValues(now);
-    n.gain.gain.setValueAtTime(n.gain.gain.value, now);
-    n.gain.gain.linearRampToValueAtTime(0, now + 0.15);
+    n.gain.gain.setTargetAtTime(
+      0,
+      audioCtx.currentTime,
+      0.1
+    );
 
     setTimeout(()=>{
       n.osc.stop();
-      n.noise.stop();
       n.vibratoOsc.stop();
-    },200);
+      delete activeNotes[note];
+    },300);
 
-    delete activeNotes[note];
   }
 }
 
-/* ===== MIDI接続 ===== */
 async function connectMIDI(){
-  try{
-    midiAccess = await navigator.requestMIDIAccess();
 
-    const inputs = midiAccess.inputs.values();
+  try{
+
+    midiAccess =
+      await navigator.requestMIDIAccess();
+
+    const inputs =
+      midiAccess.inputs.values();
 
     for(let i of inputs){
       input = i;
@@ -183,35 +221,74 @@ async function connectMIDI(){
     }
 
     if(input){
-      input.onmidimessage = handleMIDI;
-      document.getElementById("note").innerText = "接続成功";
+      input.onmidimessage =
+        handleMIDI;
+
+      document.getElementById("note")
+      .innerText="接続成功";
     }
 
   }catch(e){
     alert("MIDI接続失敗");
   }
+
 }
 
-/* ===== MIDI処理 ===== */
 function handleMIDI(msg){
-  const [status, note, velocity] = msg.data;
 
-  if(status === 144 && velocity > 0){
-    playFreq(note, velocity);
+  const [status, data1, data2] =
+    msg.data;
 
-    document.getElementById("note").innerText =
-      `Note: ${note} Velocity: ${velocity}`;
+  const command =
+    status & 0xf0;
+
+  /* Note On */
+  if(command === 0x90 && data2>0){
+
+    playFreq(data1,data2);
+
+    document.getElementById("note")
+      .innerText =
+      `Note:${data1} Breath:${Math.round(breath*127)}`;
   }
 
-  if(status === 128 || (status === 144 && velocity === 0)){
-    stopFreq(note);
+  /* Note Off */
+  if(command === 0x80 ||
+     (command===0x90 && data2===0)){
+
+    stopFreq(data1);
   }
+
+  /* CC */
+  if(command === 0xB0){
+
+    if(data1 === 2){ // CC2 breath
+      updateBreath(data2);
+    }
+
+  }
+
 }
 
-/* ===== テスト ===== */
 function testSound(){
+
   playFreq(69,100);
-  setTimeout(()=>stopFreq(69),800);
+
+  let b=0;
+
+  const i=setInterval(()=>{
+
+    updateBreath(b);
+
+    b+=5;
+
+    if(b>120){
+      clearInterval(i);
+      stopFreq(69);
+    }
+
+  },40);
+
 }
 </script>
 
