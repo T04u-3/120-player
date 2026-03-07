@@ -64,7 +64,7 @@ function playFreq(freq, velocity){
   osc.type = "sine";
   osc.frequency.value = freq;
 
-  gain.gain.value = (velocity / 127) * 0.15;
+  gain.gain.value = (velocity / 127) * 0.03;
 
   osc.connect(gain);
   gain.connect(audioCtx.destination);
