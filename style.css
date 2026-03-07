@@ -1,19 +1,14 @@
 body{
-background:#0f172a;
+background:#0b1220;
 color:white;
 font-family:sans-serif;
 display:flex;
 justify-content:center;
-align-items:center;
-height:100vh;
 }
 
-.container{
-background:#1e293b;
-padding:30px;
-border-radius:15px;
-width:400px;
-box-shadow:0 0 30px rgba(0,0,0,0.6);
+#app{
+width:900px;
+padding:40px;
 }
 
 h1{
@@ -21,41 +16,32 @@ text-align:center;
 }
 
 button{
-width:100%;
-padding:12px;
+padding:10px 20px;
+font-size:18px;
+background:#2563eb;
 border:none;
 border-radius:8px;
-background:#3b82f6;
 color:white;
-font-size:16px;
-margin-bottom:20px;
-cursor:pointer;
 }
 
-.panel{
-margin-bottom:20px;
-}
-
-.meter{
+#meter{
 height:20px;
-background:#111;
-border-radius:10px;
-overflow:hidden;
+background:#222;
+margin-top:20px;
 }
 
-#level{
+#breath{
 height:100%;
 width:0%;
 background:linear-gradient(90deg,#22c55e,#ef4444);
 }
 
-.note{
-margin-top:10px;
-font-size:20px;
-text-align:center;
+#note{
+font-size:40px;
+margin-top:20px;
 }
 
-.controls label{
-display:block;
-margin-top:10px;
+#sheet{
+margin-top:40px;
+background:white;
 }
